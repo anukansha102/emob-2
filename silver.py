@@ -1,4 +1,17 @@
 # Databricks notebook source
+import requests
+import json
+from pyspark.sql.functions import col, lit, current_timestamp, explode_outer
+from pyspark.sql.types import StructType, ArrayType
+from datetime import datetime
+from pyspark.sql.window import Window
+from pyspark.sql.functions import row_number
+from tzfpy import get_tz
+from pyspark.sql.functions import udf
+from pyspark.sql.types import StringType
+
+# COMMAND ----------
+
 # Create the silver layer schema if it doesn't exist
 spark.sql("CREATE SCHEMA IF NOT EXISTS euh_emobility")
 
@@ -83,11 +96,17 @@ CREATE TABLE IF NOT EXISTS euh_emobility.charger_connector (
 
 # COMMAND ----------
 
-from tzfpy import get_tz
-from pyspark.sql.functions import udf
-from pyspark.sql.types import StringType
-
 def get_timezone(lat, lon):
+    """
+    Get the timezone for a given latitude and longitude.
+
+    Args:
+        lat (float): Latitude.
+        lon (float): Longitude.
+
+    Returns:
+        str: Timezone as a string, or 'None' if an error occurs.
+    """
     try:
         timezone = get_tz(lat, lon)
         return timezone
@@ -101,20 +120,14 @@ spark.udf.register("get_timezone", get_timezone_udf)
 
 # COMMAND ----------
 
-# Load your source DataFrame
+# Loading the bronze table as a DataFrame
 source_df = spark.sql("SELECT * FROM raw_emobility.bronze_ocm_data")
 
 # Apply the UDF to add the timezone column
 source_df = source_df.withColumn("timezone", get_timezone_udf(source_df["AddressInfo_Latitude"], source_df["AddressInfo_Longitude"]))
 
-# Create a temporary view for the updated DataFrame
-source_df.createOrReplaceTempView("updated_anu_ocm_bronze")
-
 
 # COMMAND ----------
-
-from pyspark.sql.window import Window
-from pyspark.sql.functions import row_number
 
 # Generate new location_id values starting from 1
 window_spec = Window.orderBy("AddressInfo_ID")
@@ -126,6 +139,7 @@ source_df.createOrReplaceTempView("updated_anu_ocm_bronze_with_ids")
 
 # COMMAND ----------
 
+# Merge the updated DataFrame into the charger_location table
 spark.sql("""
 MERGE INTO euh_emobility.charger_location AS target
 USING (
@@ -135,7 +149,7 @@ USING (
         UUID AS source_location_id,
         'PUBLIC' AS location_type,
         NULL AS location_sub_type,
-        AddressInfo_AddressLine1 AS name,  -- Duplicate of the first line of the address
+        AddressInfo_AddressLine1 AS name,
         AddressInfo_Country_ISOCode AS country_code,
         CONCAT(AddressInfo_AddressLine1, ' ', AddressInfo_AddressLine2) AS address,
         AddressInfo_Town AS city,
@@ -194,13 +208,17 @@ display(charger_location_df)
 
 # COMMAND ----------
 
-from pyspark.sql.functions import explode, array, lit
-from pyspark.sql.types import ArrayType
-
-# COMMAND ----------
-
-# Define a function to create an array of source_evse_id values
 def create_source_evse_ids(uuid, num_points):
+    """
+    Create an array of source_evse_id values based on the UUID and number of points.
+
+    Args:
+        uuid (str): The UUID of the location.
+        num_points (int): The number of points (EVSEs) at the location.
+
+    Returns:
+        list: A list of source_evse_id values.
+    """
     if num_points is None:
         num_points = 1
     return [f"{uuid}-{i+1}" for i in range(num_points)]
@@ -211,13 +229,13 @@ def create_source_evse_ids(uuid, num_points):
 create_source_evse_ids_udf = udf(create_source_evse_ids, ArrayType(StringType()))
 spark.udf.register("create_source_evse_ids", create_source_evse_ids_udf)
 
-# COMMAND ----------
-
 # Apply the UDF to create an array of source_evse_id values
 source_df = source_df.withColumn("source_evse_ids", create_source_evse_ids_udf(source_df["UUID"], source_df["NumberOfPoints"]))
 
 # Explode the array to create multiple rows
 source_df = source_df.withColumn("source_evse_id", explode(source_df["source_evse_ids"]))
+
+# COMMAND ----------
 
 # Generate new evse_id values starting from 1
 window_spec = Window.orderBy("ID")
@@ -225,10 +243,6 @@ source_df = source_df.withColumn("evse_id", row_number().over(window_spec))
 
 # Create a temporary view for the updated DataFrame with new evse_id values
 source_df.createOrReplaceTempView("updated_anu_ocm_bronze_with_evse_ids")
-
-# COMMAND ----------
-
-display(source_df)
 
 # COMMAND ----------
 
@@ -286,14 +300,17 @@ display(charger_evse_df)
 
 # COMMAND ----------
 
-# Using DELETE
-spark.sql("DELETE FROM euh_emobility.charger_connector")
-
-
-# COMMAND ----------
-
-# Define a function to create an array of source_connector_id values
 def create_source_connector_ids(source_evse_id, num_connections):
+    """
+    Creates an array of source_connector_id values based on the source_evse_id and number of connections.
+
+    Args:
+        source_evse_id (str): The source EVSE ID.
+        num_connections (int): The number of connections.
+
+    Returns:
+        list: A list of source_connector_id values.
+    """
     return [f"{source_evse_id}-{num_connections}"]
 
 # COMMAND ----------
@@ -302,15 +319,13 @@ def create_source_connector_ids(source_evse_id, num_connections):
 create_source_connector_ids_udf = udf(create_source_connector_ids, ArrayType(StringType()))
 spark.udf.register("create_source_connector_ids", create_source_connector_ids_udf)
 
-# COMMAND ----------
-
 # Apply the UDF to create an array of source_connector_id values
 source_df = source_df.withColumn("source_connector_ids", create_source_connector_ids_udf(source_df["UUID"], source_df["Connections_num_of_points"]))
 
-# COMMAND ----------
-
 # Explode the array to create multiple rows
 source_df = source_df.withColumn("source_connector_id", explode(source_df["source_connector_ids"]))
+
+# COMMAND ----------
 
 # Generate new connector_id values starting from 1
 window_spec = Window.orderBy("Connections_ID")
@@ -318,10 +333,6 @@ source_df = source_df.withColumn("connector_id", row_number().over(window_spec))
 
 # Create a temporary view for the updated DataFrame with new connector_id values
 source_df.createOrReplaceTempView("updated_anu_ocm_bronze_with_connector_ids")
-
-# COMMAND ----------
-
-display(source_df)
 
 # COMMAND ----------
 
