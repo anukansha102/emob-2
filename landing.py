@@ -1,7 +1,6 @@
 # Databricks notebook source
 import requests
 import json
-from azure.storage.blob import BlobServiceClient
 
 # COMMAND ----------
 
@@ -9,6 +8,9 @@ from azure.storage.blob import BlobServiceClient
 kv_scope = "anu-access-scope"
 key_vault_name = "de106kv50215"
 key_vault_secret_name = "anu-storage-access"
+
+# COMMAND ----------
+
 # Fetch the secret from Azure Key Vault
 storage_account_key = dbutils.secrets.get(scope=kv_scope, key=key_vault_secret_name)
 
@@ -30,7 +32,7 @@ dbutils.fs.mount(
 
 # COMMAND ----------
 
-# Use the mount point in your data path
+# Use the mount point in to get source data path
 source_data_path = f"{mount_point}/e-mob2/source-data/"
 print(source_data_path)
 
@@ -41,6 +43,7 @@ api_key = dbutils.secrets.get(scope="anu-emob-2", key="anu-api-key")
 
 # COMMAND ----------
 
+# Define the API endpoint, headers with the API key, and parameters for the request
 url = "https://api.openchargemap.io/v3/poi/"
 headers = {
     "X-API-Key": api_key
@@ -60,6 +63,7 @@ response = requests.get(url, headers=headers, params=params)
 
 # COMMAND ----------
 
+# Check if the API request was successful and parse the JSON response
 if response.status_code == 200:
     data = response.json()
 
@@ -70,28 +74,29 @@ df = spark.read.json(spark.sparkContext.parallelize([json.dumps(data)]))
 
 # COMMAND ----------
 
-# Show the DataFrame schema and data
-df.printSchema()
-df.show(truncate=False)
-
-# COMMAND ----------
-
+# Display the DataFrame and counting the number of responses gotten
 display(df)
-
-# COMMAND ----------
-
 df.count()
 
 # COMMAND ----------
 
 from datetime import datetime
 
+# COMMAND ----------
+
 def time_stamp():
+    """
+    Generate a timestamp string in the format 'YYYY-MM-DDTHH_MM_SS'.
+    
+    Returns:
+        str: The current timestamp formatted as a string.
+    """
     return datetime.now().strftime("%Y-%m-%dT%H_%M_%SZ")
 
 # COMMAND ----------
 
-file_path = source_data_path = f"abfss://{container_name}@{storage_account}.dfs.core.windows.net/e-mob2/source-data/OCM_data_{time_stamp()}"
+# Specify the output path
+file_path = f"{source_data_path}/OCM_data_{time_stamp()}"
 
 # COMMAND ----------
 
