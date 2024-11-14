@@ -1,7 +1,7 @@
 # Databricks notebook source
 import requests
 import json
-from pyspark.sql.functions import col, lit, current_timestamp, explode_outer
+from pyspark.sql.functions import col, lit, current_timestamp, explode_outer, explode
 from pyspark.sql.types import StructType, ArrayType
 from datetime import datetime
 from pyspark.sql.window import Window
