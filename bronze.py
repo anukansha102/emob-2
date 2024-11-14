@@ -11,6 +11,10 @@ from datetime import datetime
 kv_scope = "anu-access-scope"
 key_vault_name = "de106kv50215"
 key_vault_secret_name = "anu-storage-access"
+
+
+# COMMAND ----------
+
 # Fetch the secret from Azure Key Vault
 storage_account_key = dbutils.secrets.get(scope=kv_scope, key=key_vault_secret_name)
 
@@ -23,14 +27,22 @@ mount_point = "/mnt/anukansha"
 
 # COMMAND ----------
 
-# Use the mount point in your data path
+# Use the mount point to get path of source data
 source_data_folder = f"{mount_point}/e-mob2/"
 print(source_data_folder)
 
 # COMMAND ----------
 
-# Function to list all JSON files in nested directories
 def list_json_files(folder_path):
+    """
+    Recursively lists all JSON files in the given folder path.
+
+    Args:
+        folder_path (str): The path to the folder to search for JSON files.
+
+    Returns:
+        list: A list of paths to JSON files.
+    """
     files = dbutils.fs.ls(folder_path)
     json_files = []
     for file in files:
@@ -44,24 +56,26 @@ def list_json_files(folder_path):
 
 # List all JSON files in the source data folder and its subdirectories
 json_files = list_json_files(source_data_folder)
-
-# COMMAND ----------
-
 print(json_files)
 
 # COMMAND ----------
 
-# Read the JSON files into a DataFrame
+# Read the JSON files into a DataFrame and display it
 df = spark.read.json(json_files)
-
-# COMMAND ----------
-
 display(df)
 
 # COMMAND ----------
 
-# Custom function to flatten nested JSON
 def custom_flatten(df):
+    """
+    Flattens nested JSON structures in a DataFrame.
+
+    Args:
+        df (DataFrame): The DataFrame to flatten.
+
+    Returns:
+        DataFrame: The flattened DataFrame.
+    """
     complex_fields = {field.name: field.dataType for field in df.schema.fields if isinstance(field.dataType, (ArrayType, StructType))}
     
     while complex_fields:
@@ -99,6 +113,7 @@ flattened_df = flattened_df.withColumn("Connections_num_of_points", row_number()
 
 # COMMAND ----------
 
+# Display the flattened dataframe
 display(flattened_df)
 
 # COMMAND ----------
