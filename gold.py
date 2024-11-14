@@ -5,6 +5,9 @@ spark.sql("CREATE SCHEMA IF NOT EXISTS curated_emobility")
 # COMMAND ----------
 
 # MAGIC %sql 
+# MAGIC /*
+# MAGIC     Count the number of chargers in each state in the US and also specify the type of charger.
+# MAGIC */
 # MAGIC CREATE OR REPLACE VIEW curated_emobility.us_charger_count_by_state AS 
 # MAGIC SELECT
 # MAGIC cl.county AS county,
@@ -29,32 +32,9 @@ spark.sql("CREATE SCHEMA IF NOT EXISTS curated_emobility")
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC CREATE OR REPLACE VIEW curated_emobility.us_charger_count_by_power AS
-# MAGIC SELECT
-# MAGIC     CASE
-# MAGIC         WHEN cc.power_kw <= 7 THEN 'Slow (<= 7 kW)'
-# MAGIC         WHEN cc.power_kw <= 22 THEN 'Fast (> 7 kW and <= 22 kW)'
-# MAGIC         WHEN cc.power_kw <= 50 THEN 'Rapid (> 22 kW and <= 50 kW)'
-# MAGIC         ELSE 'Ultra-Rapid (> 50 kW)'
-# MAGIC     END AS power_category,
-# MAGIC     COUNT(*) AS charger_count
-# MAGIC FROM
-# MAGIC     euh_emobility.charger_connector cc
-# MAGIC JOIN
-# MAGIC     euh_emobility.charger_location cl ON cc.evse_id = cl.location_id
-# MAGIC WHERE
-# MAGIC     cl.country_code = 'US'
-# MAGIC GROUP BY
-# MAGIC     power_category;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC SELECT * FROM curated_emobility.us_charger_count_by_power;
-
-# COMMAND ----------
-
-# MAGIC %sql
+# MAGIC /*
+# MAGIC     Count the number of chargers in each power category.
+# MAGIC */
 # MAGIC CREATE OR REPLACE VIEW curated_emobility.us_charger_count_by_power_details AS
 # MAGIC SELECT
 # MAGIC     CASE
@@ -87,6 +67,9 @@ spark.sql("CREATE SCHEMA IF NOT EXISTS curated_emobility")
 # COMMAND ----------
 
 # MAGIC %sql
+# MAGIC /*
+# MAGIC     Count the number of chargers commissioned every month.
+# MAGIC */
 # MAGIC CREATE OR REPLACE VIEW curated_emobility.us_charging_stations_commissioned_over_time AS
 # MAGIC SELECT
 # MAGIC     DATE_TRUNC('month', cl.commissioned) AS month,
@@ -109,6 +92,9 @@ spark.sql("CREATE SCHEMA IF NOT EXISTS curated_emobility")
 # COMMAND ----------
 
 # MAGIC %sql
+# MAGIC /*
+# MAGIC     Calculate the total number of charging stations, average connector power and the number of unique operators.
+# MAGIC */
 # MAGIC CREATE OR REPLACE VIEW curated_emobility.us_charging_kpis AS
 # MAGIC SELECT
 # MAGIC     COUNT(DISTINCT cl.location_id) AS total_charging_stations,
