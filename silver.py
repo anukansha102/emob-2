@@ -294,9 +294,7 @@ spark.sql("DELETE FROM euh_emobility.charger_connector")
 
 # Define a function to create an array of source_connector_id values
 def create_source_connector_ids(source_evse_id, num_connections):
-    if num_connections is None:
-        num_connections = 1  # Default to 1 if num_connections is None
-    return [f"{source_evse_id}-{i+1}" for i in range(num_connections)]
+    return [f"{source_evse_id}-{num_connections}"]
 
 # COMMAND ----------
 
@@ -307,7 +305,7 @@ spark.udf.register("create_source_connector_ids", create_source_connector_ids_ud
 # COMMAND ----------
 
 # Apply the UDF to create an array of source_connector_id values
-source_df = source_df.withColumn("source_connector_ids", create_source_connector_ids_udf(source_df["UUID"], source_df["Connections_Quantity"]))
+source_df = source_df.withColumn("source_connector_ids", create_source_connector_ids_udf(source_df["UUID"], source_df["Connections_num_of_points"]))
 
 # COMMAND ----------
 

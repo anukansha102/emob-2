@@ -1,7 +1,7 @@
 # Databricks notebook source
 import requests
 import json
-from pyspark.sql.functions import col, lit, current_timestamp, explode_outer
+from pyspark.sql.functions import col, lit, current_timestamp, explode_outer, posexplode_outer
 from pyspark.sql.types import StructType, ArrayType
 from datetime import datetime
 
@@ -83,6 +83,19 @@ def custom_flatten(df):
 
 # Flatten the JSON structure using the function
 flattened_df = custom_flatten(df)
+
+# COMMAND ----------
+
+from pyspark.sql.window import Window
+from pyspark.sql.functions import row_number
+
+# COMMAND ----------
+
+# Define window specification
+windowSpec = Window.partitionBy("ID").orderBy("ID")
+
+# Add Connections_num_of_points column
+flattened_df = flattened_df.withColumn("Connections_num_of_points", row_number().over(windowSpec))
 
 # COMMAND ----------
 
