@@ -96,6 +96,11 @@ CREATE TABLE IF NOT EXISTS euh_emobility.charger_connector (
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC Populating Charger Location Table
+
+# COMMAND ----------
+
 def get_timezone(lat, lon):
     """
     Get the timezone for a given latitude and longitude.
@@ -111,7 +116,7 @@ def get_timezone(lat, lon):
         timezone = get_tz(lat, lon)
         return timezone
     except Exception as e:
-        return 'None'  # Returning None if there is an error
+        return 'None'  
 
 # Register the function as a UDF
 get_timezone_udf = udf(lambda lat, lon: get_timezone(lat, lon), StringType())
@@ -202,9 +207,13 @@ WHEN NOT MATCHED THEN
 
 # COMMAND ----------
 
-# Display the contents of the charger_location table
-charger_location_df = spark.sql("SELECT * FROM euh_emobility.charger_location")
-display(charger_location_df)
+# MAGIC %sql
+# MAGIC SELECT * FROM euh_emobility.charger_location
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Populating Charger EVSE Table
 
 # COMMAND ----------
 
@@ -294,9 +303,13 @@ WHEN NOT MATCHED THEN
 
 # COMMAND ----------
 
-# Display the contents of the charger_evse table
-charger_evse_df = spark.sql("SELECT * FROM euh_emobility.charger_evse")
-display(charger_evse_df)
+# MAGIC %sql
+# MAGIC SELECT * FROM euh_emobility.charger_evse
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Populating Charger Connector Table
 
 # COMMAND ----------
 
@@ -330,6 +343,7 @@ source_df = source_df.withColumn("source_connector_id", explode(source_df["sourc
 # Generate new connector_id values starting from 1
 window_spec = Window.orderBy("Connections_ID")
 source_df = source_df.withColumn("connector_id", row_number().over(window_spec))
+source_df = source_df.dropDuplicates(["Connections_ID"])
 
 # Create a temporary view for the updated DataFrame with new connector_id values
 source_df.createOrReplaceTempView("updated_anu_ocm_bronze_with_connector_ids")
@@ -382,6 +396,5 @@ WHEN NOT MATCHED THEN
 
 # COMMAND ----------
 
-# Display the contents of the charger_connector table
-charger_connector_df = spark.sql("SELECT * FROM euh_emobility.charger_connector")
-display(charger_connector_df)
+# MAGIC %sql
+# MAGIC SELECT * FROM euh_emobility.charger_connector

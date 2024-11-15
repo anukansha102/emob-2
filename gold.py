@@ -1,5 +1,5 @@
 # Databricks notebook source
-# Create the silver layer schema if it doesn't exist
+# Create the gold layer schema if it doesn't exist
 spark.sql("CREATE SCHEMA IF NOT EXISTS curated_emobility")
 
 # COMMAND ----------

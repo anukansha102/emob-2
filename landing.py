@@ -23,11 +23,12 @@ mount_point = "/mnt/anukansha"
 
 # COMMAND ----------
 
-# Mount the storage account using the wasbs scheme
-# Write to bronze table (Delta format)
-bronze_df.write.format("delta").mode("overwrite").saveAsTable("raw_emobility.bronze_ocm_data")
-
-print(f"Bronze table created in raw_emobility schema with data from {source_data_folder}")
+# Mount the storage account
+# dbutils.fs.mount(
+#   source = f"wasbs://{container_name}@{storage_account}.blob.core.windows.net/",
+#   mount_point = mount_point,
+#   extra_configs = {f"fs.azure.account.key.{storage_account}.blob.core.windows.net": storage_account_key}
+# )
 
 # COMMAND ----------
 

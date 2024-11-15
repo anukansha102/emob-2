@@ -126,7 +126,7 @@ bronze_df = flattened_df.withColumn("source_name", lit("OCM_API")) \
 
 # COMMAND ----------
 
-# Create the silver layer schema if it doesn't exist
+# Create the bronze layer schema if it doesn't exist
 spark.sql("CREATE SCHEMA IF NOT EXISTS raw_emobility")
 
 # COMMAND ----------
